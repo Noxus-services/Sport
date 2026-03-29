@@ -6,6 +6,18 @@
   NEXT_TELEMETRY_DISABLED = "1"
   NODE_VERSION            = "22"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Function route — must be BEFORE the SPA catch-all
+[[redirects]]
+  from   = "/api/gemini"
+  to     = "/.netlify/functions/gemini"
+  status = 200
+  force  = true
+
+# SPA fallback
 [[redirects]]
   from   = "/*"
   to     = "/index.html"

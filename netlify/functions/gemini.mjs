@@ -149,4 +149,3 @@ function json(data, status = 200) {
   });
 }
 
-export const config = { path: '/api/gemini' };
