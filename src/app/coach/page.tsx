@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/database';
 import { getUserProfile } from '@/db/userProfileService';
+import { sendCoachMessage } from '@/lib/gemini-client';
 import type { UserProfile } from '@/db/database';
 
 interface Message { role: 'user' | 'assistant'; content: string; }
@@ -49,13 +49,7 @@ export default function CoachPage() {
     });
 
     try {
-      const res = await fetch('/api/coach', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages, userProfile: profile }),
-      });
-      const data = await res.json();
-      const reply = data.reply ?? 'Désolé, une erreur est survenue.';
+      const reply = await sendCoachMessage(newMessages, profile);
 
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
       await db.coachMessages.add({

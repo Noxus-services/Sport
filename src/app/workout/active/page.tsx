@@ -8,8 +8,9 @@ import {
   finishWorkoutSession,
   saveAiCoachFeedback,
 } from '@/db/workoutService';
-import { getActiveProgram, getTodayProgramDay } from '@/db/programService';
+import { getTodayProgramDay } from '@/db/programService';
 import { getUserProfile } from '@/db/userProfileService';
+import { analyzeWorkout } from '@/lib/gemini-client';
 import type { WorkoutSession, LoggedExercise, LoggedSet, PlannedExercise } from '@/db/database';
 
 type FinishState = 'idle' | 'form' | 'analyzing' | 'done';
@@ -166,15 +167,10 @@ export default function ActiveWorkoutPage() {
         import('@/db/workoutService').then((m) => m.getSessionById(session.id!)),
         getUserProfile(),
       ]);
-      const res = await fetch('/api/analyze-workout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session: updatedSession, userProfile: profile }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        await saveAiCoachFeedback(session.id, data.feedback);
-        setFeedback(data.feedback);
+      if (updatedSession) {
+        const feedback = await analyzeWorkout(updatedSession, profile ?? null);
+        await saveAiCoachFeedback(session.id, feedback);
+        setFeedback(feedback);
       }
     } catch { /* feedback optional */ }
 

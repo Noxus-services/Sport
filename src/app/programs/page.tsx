@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getAllPrograms, setActiveProgram, deleteProgram } from '@/db/programService';
+import { getAllPrograms, setActiveProgram, deleteProgram, saveProgram } from '@/db/programService';
 import { getUserProfile } from '@/db/userProfileService';
-import { saveProgram } from '@/db/programService';
+import { generateProgram } from '@/lib/gemini-client';
 import type { Program, UserProfile } from '@/db/database';
 
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -28,17 +28,11 @@ export default function ProgramsPage() {
     setGenerating(true);
     setError('');
     try {
-      const res = await fetch('/api/generate-program', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userProfile: profile }),
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      await saveProgram(data.program);
+      const programData = await generateProgram(profile);
+      await saveProgram({ ...(programData as object), generatedAt: new Date(), weekNumber: 0, isActive: true } as Parameters<typeof saveProgram>[0]);
       await load();
     } catch {
-      setError('Erreur lors de la génération. Vérifie ta clé GEMINI_API_KEY.');
+      setError('Erreur Gemini. Vérifie ta clé API dans Profil → Clé Gemini.');
     }
     setGenerating(false);
   }

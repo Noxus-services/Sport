@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, upsertUserProfile } from '@/db/userProfileService';
+import { getGeminiKey, setGeminiKey } from '@/lib/gemini-client';
 import type { UserProfile } from '@/db/database';
 
 const GOALS = ['force', 'hypertrophie', 'endurance', 'perte_poids', 'athletisme'] as const;
@@ -21,10 +22,13 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [apiKey, setApiKey] = useState('');
+  const [keySaved, setKeySaved] = useState(false);
 
   useEffect(() => {
     getUserProfile().then((p) => {
       if (p) setProfile(p);
+      setApiKey(getGeminiKey());
       setLoading(false);
     });
   }, []);
@@ -143,6 +147,25 @@ export default function ProfilePage() {
           rows={3}
           className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:border-orange-500"
         />
+      </Section>
+
+      <Section title="Clé API Gemini">
+        <div className="flex flex-col gap-2">
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => { setApiKey(e.target.value); setKeySaved(false); }}
+            placeholder="AIza..."
+            className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-zinc-100 font-mono text-sm focus:outline-none focus:border-orange-500"
+          />
+          <button
+            onClick={() => { setGeminiKey(apiKey); setKeySaved(true); setTimeout(() => setKeySaved(false), 2000); }}
+            className={`py-2.5 rounded-xl font-semibold text-sm transition-all ${keySaved ? 'bg-green-500 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'}`}
+          >
+            {keySaved ? '✓ Clé sauvegardée' : 'Mettre à jour la clé'}
+          </button>
+          <p className="text-xs text-zinc-600">Stockée uniquement dans ce navigateur.</p>
+        </div>
       </Section>
 
       <button
