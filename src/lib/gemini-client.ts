@@ -26,10 +26,10 @@ async function call(action: string, payload: object): Promise<Response> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     const msg: string = err.error ?? `HTTP ${res.status}`;
-    if (res.status === 401 || msg.includes('API_KEY_INVALID')) throw new Error('Clé API invalide — vérifie-la dans Profil.');
+    if (res.status === 401 || msg.toLowerCase().includes('api_key') || msg.toLowerCase().includes('invalid')) throw new Error('Clé API invalide — vérifie-la dans Profil.');
     if (res.status === 403) throw new Error('Active l\'API Gemini sur aistudio.google.com.');
     if (res.status === 429) throw new Error('Quota Gemini dépassé — réessaie dans 1 minute.');
-    throw new Error(`Erreur : ${msg.slice(0, 200)}`);
+    throw new Error(msg.slice(0, 300) || `Erreur ${res.status}`);
   }
   return res;
 }
@@ -43,10 +43,10 @@ export async function testGeminiKey(key: string): Promise<void> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: '' }));
     const msg = err.error ?? '';
-    if (res.status === 401 || msg.includes('API_KEY_INVALID')) throw new Error('Clé invalide');
-    if (res.status === 403) throw new Error('Permission refusée');
-    if (res.status === 429) throw new Error('Quota dépassé');
-    throw new Error(`Erreur ${res.status}`);
+    if (res.status === 401 || msg.toLowerCase().includes('api_key') || msg.toLowerCase().includes('invalid')) throw new Error('Clé invalide — vérifie sur aistudio.google.com');
+    if (res.status === 403) throw new Error('Permission refusée — active l\'API Gemini sur aistudio.google.com');
+    if (res.status === 429) throw new Error('Quota Gemini dépassé — réessaie dans 1 minute');
+    throw new Error(msg || `Erreur ${res.status}`);
   }
 }
 
