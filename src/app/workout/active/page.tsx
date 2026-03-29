@@ -7,13 +7,15 @@ import {
   updateSessionExercises,
   finishWorkoutSession,
   saveAiCoachFeedback,
+  getRecentSessions,
+  cancelWorkoutSession,
 } from '@/db/workoutService';
 import { getTodayProgramDay } from '@/db/programService';
 import { getUserProfile } from '@/db/userProfileService';
 import { analyzeWorkout } from '@/lib/gemini-client';
 import type { WorkoutSession, LoggedExercise, LoggedSet, PlannedExercise } from '@/db/database';
 
-type FinishState = 'idle' | 'form' | 'analyzing' | 'done';
+type FinishState = 'idle' | 'form' | 'analyzing' | 'done' | 'cancel';
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
@@ -156,6 +158,13 @@ export default function ActiveWorkoutPage() {
     setFinishState('form');
   }
 
+  async function handleCancel() {
+    if (!session?.id) return;
+    if (timerRef.current) clearInterval(timerRef.current);
+    await cancelWorkoutSession(session.id);
+    router.replace('/dashboard');
+  }
+
   async function submitFinish() {
     if (!session?.id) return;
     setFinishState('analyzing');
@@ -163,12 +172,13 @@ export default function ActiveWorkoutPage() {
     await finishWorkoutSession(session.id, { mood, energy, notes });
 
     try {
-      const [updatedSession, profile] = await Promise.all([
+      const [updatedSession, profile, history] = await Promise.all([
         import('@/db/workoutService').then((m) => m.getSessionById(session.id!)),
         getUserProfile(),
+        getRecentSessions(10),
       ]);
       if (updatedSession) {
-        const feedback = await analyzeWorkout(updatedSession, profile ?? null);
+        const feedback = await analyzeWorkout(updatedSession, profile ?? null, history);
         await saveAiCoachFeedback(session.id, feedback);
         setFeedback(feedback);
       }
@@ -370,13 +380,23 @@ export default function ActiveWorkoutPage() {
         )}
       </div>
 
-      {/* Bottom finish button */}
-      <div className="px-4 py-4 border-t border-zinc-800 bg-zinc-950">
+      {/* Bottom buttons */}
+      <div className="px-4 py-4 border-t border-zinc-800 bg-zinc-950 flex gap-3">
+        <button
+          onClick={() => {
+            if (confirm('Annuler la séance ? Les données ne seront pas sauvegardées.')) {
+              handleCancel();
+            }
+          }}
+          className="px-4 py-3.5 border border-zinc-700 rounded-xl text-zinc-400 hover:border-red-800 hover:text-red-400 transition-colors text-sm font-semibold"
+        >
+          Annuler
+        </button>
         <button
           onClick={handleFinish}
-          className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors"
+          className="flex-1 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors"
         >
-          Terminer la séance ({completedSets}/{totalSets})
+          Terminer ({completedSets}/{totalSets})
         </button>
       </div>
     </div>

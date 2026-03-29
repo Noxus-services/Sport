@@ -111,6 +111,10 @@ async function detectPRs(
   return prs;
 }
 
+export async function cancelWorkoutSession(sessionId: number): Promise<void> {
+  await db.workoutSessions.delete(sessionId);
+}
+
 export async function getRecentSessions(limit = 10): Promise<WorkoutSession[]> {
   return db.workoutSessions
     .orderBy('date')

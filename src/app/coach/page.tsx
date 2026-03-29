@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { db } from '@/db/database';
 import { getUserProfile } from '@/db/userProfileService';
+import { getRecentSessions } from '@/db/workoutService';
+import { getActiveProgram } from '@/db/programService';
 import { sendCoachMessage } from '@/lib/gemini-client';
-import type { UserProfile } from '@/db/database';
+import type { UserProfile, WorkoutSession, Program } from '@/db/database';
 
 interface Message { role: 'user' | 'assistant'; content: string; }
 
@@ -20,10 +22,14 @@ export default function CoachPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [recentSessions, setRecentSessions] = useState<WorkoutSession[]>([]);
+  const [currentProgram, setCurrentProgram] = useState<Program | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     getUserProfile().then((p) => setProfile(p ?? null));
+    getRecentSessions(10).then((s) => setRecentSessions(s));
+    getActiveProgram().then((p) => setCurrentProgram(p ?? null));
     // Load saved messages from DB
     db.coachMessages.orderBy('timestamp').toArray().then((msgs) => {
       setMessages(msgs.map((m) => ({ role: m.role, content: m.content })));
@@ -49,7 +55,7 @@ export default function CoachPage() {
     });
 
     try {
-      const reply = await sendCoachMessage(newMessages, profile);
+      const reply = await sendCoachMessage(newMessages, profile, recentSessions, currentProgram);
 
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }]);
       await db.coachMessages.add({
