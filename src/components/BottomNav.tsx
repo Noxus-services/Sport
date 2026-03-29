@@ -8,7 +8,7 @@ const NAV = [
   { href: '/workout',   label: 'Séance',  icon: DumbbellIcon },
   { href: '/programs',  label: 'Programme', icon: GridIcon },
   { href: '/coach',     label: 'Coach',   icon: SparkIcon },
-  { href: '/history',   label: 'Stats',   icon: ChartIcon },
+  { href: '/reminders', label: 'Rappels', icon: BellIcon },
 ];
 
 export default function BottomNav() {
@@ -81,10 +81,11 @@ function SparkIcon({ size, active }: { size: number; active: boolean }) {
   );
 }
 
-function ChartIcon({ size, active }: { size: number; active: boolean }) {
+function BellIcon({ size, active }: { size: number; active: boolean }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeWidth={active ? "2.5" : "2"}/>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={active ? 'white' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
     </svg>
   );
 }

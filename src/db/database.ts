@@ -113,6 +113,35 @@ export interface CoachMessage {
   context?: string;      // 'weekly_review' | 'post_workout' | 'chat' | 'program_gen'
 }
 
+export interface SupplementReminder {
+  id?: number;
+  supplement: string;    // 'creatine' | 'whey' | 'preworkout' | 'omega3' | etc.
+  label: string;         // Display name
+  emoji: string;
+  time: string;          // 'HH:MM' format
+  days: number[];        // [0-6] (0=lun), empty = every day
+  enabled: boolean;
+  aiReason: string;      // Why this time/supplement
+  dose?: string;         // '5g', '1 scoop', etc.
+  generatedAt: Date;
+}
+
+export interface CheckIn {
+  id?: number;
+  scheduledFor: Date;
+  completedAt?: Date;
+  questions: CheckInQuestion[];
+  profileSuggestions?: Partial<UserProfile>;
+  aiSummary?: string;
+}
+
+export interface CheckInQuestion {
+  id: string;
+  question: string;
+  type: 'text' | 'scale' | 'number';
+  answer?: string | number;
+}
+
 export interface WeeklyReview {
   id?: number;
   weekStart: Date;
@@ -132,6 +161,8 @@ export class ApexDatabase extends Dexie {
   exercises!: Table<Exercise>;
   coachMessages!: Table<CoachMessage>;
   weeklyReviews!: Table<WeeklyReview>;
+  supplementReminders!: Table<SupplementReminder>;
+  checkins!: Table<CheckIn>;
 
   constructor() {
     super('ApexCoach');
@@ -142,6 +173,16 @@ export class ApexDatabase extends Dexie {
       exercises: 'id, category, *muscleGroups',
       coachMessages: '++id, timestamp, context',
       weeklyReviews: '++id, weekStart',
+    });
+    this.version(2).stores({
+      userProfile: '++id',
+      programs: '++id, isActive, generatedAt',
+      workoutSessions: '++id, date, programDayRef',
+      exercises: 'id, category, *muscleGroups',
+      coachMessages: '++id, timestamp, context',
+      weeklyReviews: '++id, weekStart',
+      supplementReminders: '++id, enabled, supplement',
+      checkins: '++id, scheduledFor, completedAt',
     });
   }
 }

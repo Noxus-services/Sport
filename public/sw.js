@@ -1,4 +1,4 @@
-const CACHE = 'apexcoach-v1';
+const CACHE = 'apexcoach-v2';
 const STATIC = [
   '/',
   '/dashboard/',
@@ -7,6 +7,7 @@ const STATIC = [
   '/programs/',
   '/history/',
   '/profile/',
+  '/reminders/',
 ];
 
 self.addEventListener('install', (e) => {
@@ -25,9 +26,8 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  // Network first for API calls, cache first for static assets
   const url = new URL(e.request.url);
-  if (url.hostname.includes('googleapis') || url.hostname.includes('generativelanguage')) return;
+  if (url.hostname.includes('googleapis') || url.hostname.includes('generativelanguage') || url.hostname.includes('supabase')) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {
@@ -39,18 +39,34 @@ self.addEventListener('fetch', (e) => {
   );
 });
 
-// Push notifications
+// Push notifications from server
 self.addEventListener('push', (e) => {
-  const data = e.data?.json() ?? { title: 'ApexCoach', body: 'Rappel séance !' };
+  const data = e.data?.json() ?? { title: 'ApexCoach', body: 'Rappel !' };
   e.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       vibrate: [200, 100, 200],
+      tag: data.tag ?? 'apex-notif',
       data: { url: data.url ?? '/' },
     })
   );
+});
+
+// Triggered by main thread for local scheduled notifications
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SHOW_NOTIFICATION') {
+    const { title, body, tag, url } = e.data;
+    self.registration.showNotification(title, {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      vibrate: [200, 100, 200],
+      tag: tag ?? 'apex-reminder',
+      data: { url: url ?? '/reminders' },
+    });
+  }
 });
 
 self.addEventListener('notificationclick', (e) => {
