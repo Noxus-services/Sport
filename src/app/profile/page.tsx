@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, upsertUserProfile } from '@/db/userProfileService';
 import { getGeminiKey, setGeminiKey } from '@/lib/gemini-client';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { UserProfile } from '@/db/database';
 
 const GOALS = ['force', 'hypertrophie', 'endurance', 'perte_poids', 'athletisme'] as const;
@@ -24,6 +25,8 @@ export default function ProfilePage() {
   const [saved, setSaved] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [keySaved, setKeySaved] = useState(false);
+  const [keyTest, setKeyTest] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle');
+  const [keyTestMsg, setKeyTestMsg] = useState('');
 
   useEffect(() => {
     getUserProfile().then((p) => {
@@ -158,12 +161,52 @@ export default function ProfilePage() {
             placeholder="AIza..."
             className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-zinc-100 font-mono text-sm focus:outline-none focus:border-orange-500"
           />
-          <button
-            onClick={() => { setGeminiKey(apiKey); setKeySaved(true); setTimeout(() => setKeySaved(false), 2000); }}
-            className={`py-2.5 rounded-xl font-semibold text-sm transition-all ${keySaved ? 'bg-green-500 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'}`}
-          >
-            {keySaved ? '✓ Clé sauvegardée' : 'Mettre à jour la clé'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setGeminiKey(apiKey); setKeySaved(true); setKeyTest('idle'); setTimeout(() => setKeySaved(false), 2000); }}
+              className={`flex-1 py-2.5 rounded-xl font-semibold text-sm transition-all ${keySaved ? 'bg-green-500 text-white' : 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'}`}
+            >
+              {keySaved ? '✓ Sauvegardée' : 'Sauvegarder'}
+            </button>
+            <button
+              disabled={keyTest === 'testing'}
+              onClick={async () => {
+                const key = apiKey.trim();
+                if (!key) { setKeyTest('error'); setKeyTestMsg('Entre une clé d\'abord.'); return; }
+                setKeyTest('testing');
+                setKeyTestMsg('');
+                try {
+                  const m = new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-1.5-flash' });
+                  await m.generateContent('Réponds juste "ok"');
+                  setKeyTest('ok');
+                  setKeyTestMsg('Clé valide ✓');
+                } catch (e: unknown) {
+                  setKeyTest('error');
+                  const msg = e instanceof Error ? e.message : String(e);
+                  if (msg.includes('API_KEY_INVALID') || msg.includes('400')) setKeyTestMsg('Clé invalide');
+                  else if (msg.includes('403')) setKeyTestMsg('Permission refusée');
+                  else if (msg.includes('429')) setKeyTestMsg('Quota dépassé');
+                  else setKeyTestMsg('Erreur réseau');
+                }
+              }}
+              className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
+                keyTest === 'testing' ? 'border-zinc-700 text-zinc-500' :
+                keyTest === 'ok' ? 'border-green-500 text-green-400' :
+                keyTest === 'error' ? 'border-red-500 text-red-400' :
+                'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+              }`}
+            >
+              {keyTest === 'testing' ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  Test
+                </span>
+              ) : keyTest === 'ok' ? '✓ OK' : keyTest === 'error' ? '✗ Erreur' : 'Tester'}
+            </button>
+          </div>
+          {keyTestMsg && (
+            <p className={`text-xs ${keyTest === 'ok' ? 'text-green-400' : 'text-red-400'}`}>{keyTestMsg}</p>
+          )}
           <p className="text-xs text-zinc-600">Stockée uniquement dans ce navigateur.</p>
         </div>
       </Section>
