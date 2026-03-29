@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { getUserProfile } from '@/db/userProfileService';
 import { getActiveProgram } from '@/db/programService';
 import { getRecentSessions } from '@/db/workoutService';
@@ -90,7 +91,12 @@ export default function RemindersPage() {
   const activeCount = reminders.filter(r => r.enabled).length;
 
   return (
-    <div className="flex flex-col gap-5 pt-14 pb-4">
+    <motion.div
+      className="flex flex-col gap-5 pt-14 pb-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-5">
         <div>
@@ -238,6 +244,6 @@ export default function RemindersPage() {
           </p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

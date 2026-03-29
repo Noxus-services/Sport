@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 const NAV = [
   { href: '/dashboard', label: 'Accueil', icon: HomeIcon },
@@ -18,27 +19,33 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-5 left-0 right-0 z-50 flex justify-center px-6 safe-bottom">
-      <div className="flex items-center gap-1 bg-[#111] border border-white/[0.08] rounded-[28px] px-2 py-2 shadow-2xl shadow-black/60 backdrop-blur-xl">
+      <motion.div
+        className="flex items-center gap-1 bg-[#111] border border-white/[0.08] rounded-[28px] px-2 py-2 shadow-2xl shadow-black/60 backdrop-blur-xl"
+        initial={{ y: 80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28, delay: 0.1 }}
+      >
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = path === href || (href !== '/dashboard' && path?.startsWith(href));
           return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex flex-col items-center justify-center gap-0.5 px-3.5 py-2.5 rounded-[22px] transition-all duration-200 min-w-[54px] ${
-                active
-                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
-                  : 'text-zinc-500 hover:text-zinc-300'
-              }`}
-            >
-              <Icon size={20} active={active} />
-              <span className={`text-[9px] font-semibold tracking-wide ${active ? 'text-white' : 'text-zinc-600'}`}>
-                {label}
-              </span>
-            </Link>
+            <motion.div key={href} whileTap={{ scale: 0.88 }} transition={{ type: 'spring', stiffness: 500, damping: 25 }}>
+              <Link
+                href={href}
+                className={`flex flex-col items-center justify-center gap-0.5 px-3.5 py-2.5 rounded-[22px] transition-all duration-200 min-w-[54px] ${
+                  active
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                <Icon size={20} active={active} />
+                <span className={`text-[9px] font-semibold tracking-wide ${active ? 'text-white' : 'text-zinc-600'}`}>
+                  {label}
+                </span>
+              </Link>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </nav>
   );
 }
