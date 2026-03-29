@@ -158,6 +158,63 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Training detail */}
+      <div className="mx-5 card p-5 flex flex-col gap-4">
+        <SectionTitle>Détails entraînement</SectionTitle>
+
+        <div>
+          <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-2.5">Statut actuel</label>
+          <div className="flex flex-col gap-2">
+            {([
+              { v: 'just_starting', l: '🌱 Je commence', d: 'Débutant complet' },
+              { v: 'returning', l: '🔄 Je reprends', d: 'Retour après pause' },
+              { v: 'already_training', l: '🔥 En activité', d: 'Entraînement régulier' },
+            ] as const).map(({ v, l, d }) => (
+              <button key={v} onClick={() => set('currentStatus', v)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-sm transition-all ${profile.currentStatus === v ? 'border-orange-500/50 bg-orange-500/10' : 'border-white/[0.07] bg-white/[0.03]'}`}>
+                <span>{l}</span>
+                <span className="text-zinc-600 text-xs ml-auto">{d}</span>
+                {profile.currentStatus === v && <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center ml-1"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-2.5">Lieu d'entraînement</label>
+          <div className="flex gap-2">
+            {([{ v: 'gym', l: '🏢 Salle' }, { v: 'home', l: '🏠 Domicile' }, { v: 'outdoor', l: '🌳 Ext.' }] as const).map(({ v, l }) => (
+              <button key={v} onClick={() => set('trainingEnvironment', v)}
+                className={`flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all ${profile.trainingEnvironment === v ? 'border-orange-500/50 bg-orange-500/10 text-orange-400' : 'border-white/[0.07] bg-white/[0.03] text-zinc-400'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-2.5">
+            Durée par séance : <span className="text-orange-400 font-black">{profile.sessionDuration ?? 60} min</span>
+          </label>
+          <div className="flex gap-2">
+            {[30, 45, 60, 75, 90].map(d => (
+              <button key={d} onClick={() => set('sessionDuration', d)}
+                className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition-all ${(profile.sessionDuration ?? 60) === d ? 'border-orange-500/50 bg-orange-500/10 text-orange-400' : 'border-white/[0.07] bg-white/[0.03] text-zinc-500'}`}>
+                {d === 90 ? '90+' : d}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-2">Bagage sportif</label>
+          <input value={profile.sportBackground ?? ''} onChange={e => set('sportBackground', e.target.value)}
+            placeholder="Ex: foot amateur, tennis, natation…"
+            className="w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-3 text-zinc-100 text-sm placeholder-zinc-700 focus:outline-none focus:border-orange-500/40 transition-colors"
+          />
+        </div>
+      </div>
+
       {/* Injuries */}
       <div className="mx-5 card p-5 flex flex-col gap-3">
         <SectionTitle>Blessures & restrictions</SectionTitle>

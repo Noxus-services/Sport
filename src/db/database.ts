@@ -11,6 +11,11 @@ export interface UserProfile {
   daysPerWeek: number;     // 2-6
   availableEquipment: string[];
   injuries: string;        // texte libre
+  // Additional coaching fields
+  sessionDuration?: number;          // minutes per session: 30, 45, 60, 75, 90
+  trainingEnvironment?: 'gym' | 'home' | 'outdoor'; // where they train
+  currentStatus?: 'just_starting' | 'returning' | 'already_training'; // current training state
+  sportBackground?: string;          // other sports / athletic history
   createdAt: Date;
   updatedAt: Date;
 }

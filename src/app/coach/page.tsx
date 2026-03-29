@@ -5,8 +5,9 @@ import { db } from '@/db/database';
 import { getUserProfile } from '@/db/userProfileService';
 import { getRecentSessions } from '@/db/workoutService';
 import { getActiveProgram } from '@/db/programService';
-import { sendCoachMessage } from '@/lib/gemini-client';
-import { getGeminiKey } from '@/lib/gemini-client';
+import { sendAgentMessage, getGeminiKey } from '@/lib/gemini-client';
+import { saveProgram } from '@/db/programService';
+import { saveSupplementReminders } from '@/db/supplementService';
 import { getPendingCheckin, getLastCompletedCheckin, createCheckin, completeCheckin } from '@/db/checkinService';
 import { upsertUserProfile } from '@/db/userProfileService';
 import { shouldShowCheckin } from '@/lib/notifications';
@@ -15,10 +16,10 @@ import type { UserProfile, WorkoutSession, Program, CheckIn } from '@/db/databas
 interface Message { role: 'user' | 'assistant'; content: string; }
 
 const SUGGESTIONS = [
+  { text: 'Génère-moi un programme complet', icon: '🏗️' },
   { text: 'Analyse mon historique récent', icon: '📊' },
-  { text: 'Comment progresser en force ?', icon: '💪' },
   { text: 'Quelle nutrition post-séance ?', icon: '🥗' },
-  { text: 'Comment éviter le surentraînement ?', icon: '😴' },
+  { text: 'Planifie mes suppléments', icon: '⚡' },
 ];
 
 export default function CoachPage() {
@@ -146,9 +147,20 @@ export default function CoachPage() {
     await db.coachMessages.add({ role: 'user', content, timestamp: new Date(), context: 'chat' });
 
     try {
-      const reply = await sendCoachMessage(newMessages, profile, recentSessions, currentProgram);
+      const result = await sendAgentMessage(content, profile, recentSessions, currentProgram, messages);
+      const reply = result.reply;
       setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
       await db.coachMessages.add({ role: 'assistant', content: reply, timestamp: new Date(), context: 'chat' });
+
+      // Handle agent actions (program generation, supplements, etc.)
+      if (result.action?.type === 'program' && result.action.data) {
+        await saveProgram({ ...(result.action.data as object), generatedAt: new Date(), weekNumber: 0, isActive: true } as Parameters<typeof saveProgram>[0]);
+        const { getActiveProgram } = await import('@/db/programService');
+        setCurrentProgram(await getActiveProgram() ?? null);
+      }
+      if (result.action?.type === 'supplements' && Array.isArray(result.action.data)) {
+        await saveSupplementReminders((result.action.data as Omit<import('@/db/database').SupplementReminder, 'id'>[]).map(r => ({ ...r, enabled: true, generatedAt: new Date() })));
+      }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Erreur de connexion.';
       setMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${msg}` }]);

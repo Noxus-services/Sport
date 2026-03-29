@@ -2,31 +2,77 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { upsertUserProfile } from '@/db/userProfileService';
 import { saveProgram } from '@/db/programService';
 import { setGeminiKey, generateProgram } from '@/lib/gemini-client';
 import type { UserProfile } from '@/db/database';
 
-type Step = 'apikey' | 'identity' | 'level' | 'planning' | 'injuries' | 'generating';
+type Step = 'apikey' | 'identity' | 'status' | 'goal' | 'planning' | 'injuries' | 'generating';
 
 const EQUIPMENT_OPTIONS = [
-  'Haltères', 'Barre + disques', 'Rack à squat', 'Banc', 'Câbles/Poulie',
-  'Barre de traction', 'Anneaux', 'Kettlebells', 'Machine guidée', 'Poids du corps uniquement',
+  { label: 'Haltères', icon: '🏋️' },
+  { label: 'Barre + disques', icon: '⚖️' },
+  { label: 'Rack à squat', icon: '🔩' },
+  { label: 'Banc', icon: '🛋️' },
+  { label: 'Câbles / Poulie', icon: '🔄' },
+  { label: 'Barre de traction', icon: '🔝' },
+  { label: 'Anneaux', icon: '⭕' },
+  { label: 'Kettlebells', icon: '🔔' },
+  { label: 'Machine guidée', icon: '⚙️' },
+  { label: 'Poids du corps uniquement', icon: '🤸' },
 ];
 
 const GOALS = [
-  { value: 'force',        label: '💪 Force',          desc: 'Soulever plus lourd' },
-  { value: 'hypertrophie', label: '🏗️ Hypertrophie',   desc: 'Prise de masse musculaire' },
-  { value: 'endurance',    label: '🏃 Endurance',       desc: 'Résistance musculaire' },
-  { value: 'perte_poids',  label: '🔥 Perte de poids', desc: 'Brûler des calories' },
-  { value: 'athletisme',   label: '⚡ Athlétisme',      desc: 'Performance sportive' },
+  { value: 'hypertrophie', icon: '💪', label: 'Prise de masse', desc: 'Développer le volume musculaire' },
+  { value: 'force', icon: '🏆', label: 'Force pure', desc: 'Soulever plus lourd, performances max' },
+  { value: 'perte_poids', icon: '🔥', label: 'Perte de poids', desc: 'Brûler les graisses, garder le muscle' },
+  { value: 'endurance', icon: '🏃', label: 'Endurance', desc: 'Résistance et cardio-musculaire' },
+  { value: 'athletisme', icon: '⚡', label: 'Performance sportive', desc: 'Explosivité, agilité, puissance' },
+];
+
+const CURRENT_STATUS = [
+  {
+    value: 'just_starting',
+    icon: '🌱',
+    label: 'Je commence',
+    desc: 'Peu ou pas d\'expérience en musculation',
+  },
+  {
+    value: 'returning',
+    icon: '🔄',
+    label: 'Je reprends',
+    desc: 'Pause de plusieurs semaines ou mois',
+  },
+  {
+    value: 'already_training',
+    icon: '🔥',
+    label: 'Je m\'entraîne',
+    desc: 'Actif régulièrement en ce moment',
+  },
 ];
 
 const EXPERIENCE = [
-  { value: 'debutant',      label: 'Débutant',      desc: '< 1 an' },
-  { value: 'intermediaire', label: 'Intermédiaire', desc: '1–3 ans' },
-  { value: 'avance',        label: 'Avancé',        desc: '3+ ans' },
+  { value: 'debutant', label: 'Débutant', desc: '< 1 an de pratique' },
+  { value: 'intermediaire', label: 'Intermédiaire', desc: '1 à 3 ans' },
+  { value: 'avance', label: 'Avancé', desc: '3+ ans de pratique sérieuse' },
 ];
+
+const ENVIRONMENTS = [
+  { value: 'gym', icon: '🏢', label: 'Salle de sport' },
+  { value: 'home', icon: '🏠', label: 'Domicile' },
+  { value: 'outdoor', icon: '🌳', label: 'Extérieur' },
+];
+
+const SESSION_DURATIONS = [
+  { value: 30, label: '30 min', desc: 'Express' },
+  { value: 45, label: '45 min', desc: 'Court' },
+  { value: 60, label: '1h', desc: 'Standard' },
+  { value: 75, label: '1h15', desc: 'Complet' },
+  { value: 90, label: '1h30+', desc: 'Intensif' },
+];
+
+const STEPS: Step[] = ['apikey', 'identity', 'status', 'goal', 'planning', 'injuries', 'generating'];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -36,31 +82,53 @@ export default function OnboardingPage() {
 
   const [form, setForm] = useState({
     name: '', age: '', weight: '', height: '',
-    experience: '', goal: '', daysPerWeek: '4',
-    availableEquipment: [] as string[], injuries: '',
+    currentStatus: '' as UserProfile['currentStatus'] | '',
+    experience: '' as UserProfile['experience'] | '',
+    goal: '' as UserProfile['goal'] | '',
+    daysPerWeek: '4',
+    sessionDuration: 60,
+    trainingEnvironment: '' as UserProfile['trainingEnvironment'] | '',
+    availableEquipment: [] as string[],
+    sportBackground: '',
+    injuries: '',
   });
 
-  function set(key: string, value: string | string[]) {
-    setForm((f) => ({ ...f, [key]: value }));
+  function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
+    setForm(f => ({ ...f, [key]: value }));
     setError('');
   }
 
   function toggleEquipment(item: string) {
-    set('availableEquipment', form.availableEquipment.includes(item)
-      ? form.availableEquipment.filter((e) => e !== item)
-      : [...form.availableEquipment, item]);
+    const current = form.availableEquipment;
+    set('availableEquipment', current.includes(item)
+      ? current.filter(e => e !== item)
+      : [...current, item]);
+  }
+
+  const stepIndex = STEPS.indexOf(step);
+  const progress = Math.round((stepIndex / (STEPS.length - 1)) * 100);
+
+  function next(nextStep: Step) {
+    setError('');
+    setStep(nextStep);
   }
 
   async function generateAndSave() {
     setStep('generating');
     try {
       const profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'> = {
-        name: form.name, age: Number(form.age), weight: Number(form.weight),
+        name: form.name,
+        age: Number(form.age),
+        weight: Number(form.weight),
         height: Number(form.height),
         experience: form.experience as UserProfile['experience'],
         goal: form.goal as UserProfile['goal'],
         daysPerWeek: Number(form.daysPerWeek),
+        sessionDuration: form.sessionDuration,
+        trainingEnvironment: form.trainingEnvironment as UserProfile['trainingEnvironment'],
+        currentStatus: form.currentStatus as UserProfile['currentStatus'],
         availableEquipment: form.availableEquipment,
+        sportBackground: form.sportBackground,
         injuries: form.injuries,
       };
       await upsertUserProfile(profile);
@@ -69,230 +137,452 @@ export default function OnboardingPage() {
       router.replace('/dashboard');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
-      setError(msg === 'NO_API_KEY' ? 'Clé API manquante.' : 'Erreur Gemini. Vérifie ta clé API.');
+      setError(msg || 'Erreur lors de la génération. Vérifie ta clé API.');
       setStep('injuries');
     }
   }
 
-  const progress: Record<Step, number> = {
-    apikey: 10, identity: 28, level: 50, planning: 72, injuries: 90, generating: 100,
-  };
-
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col">
-      <div className="px-5 pt-12 pb-4">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center">
-            <span className="text-xl font-black text-white">A</span>
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+      {/* Header */}
+      <div className="px-5 pt-safe pt-12 pb-4 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center shadow-lg shadow-orange-500/30">
+            <span className="text-lg font-black text-white">A</span>
           </div>
-          <span className="font-bold text-lg">ApexCoach</span>
+          <span className="font-black text-lg tracking-tight">ApexCoach</span>
         </div>
-        <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-          <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${progress[step]}%` }} />
-        </div>
-      </div>
-
-      <div className="flex-1 px-5 pb-8 overflow-y-auto">
-
-        {/* STEP 0: API Key */}
-        {step === 'apikey' && (
-          <div className="flex flex-col gap-5 pt-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">Clé Gemini</h1>
-              <p className="text-zinc-400 text-sm">ApexCoach utilise Gemini pour générer tes programmes et analyser tes séances.</p>
-            </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex flex-col gap-3">
-              <p className="text-sm text-zinc-300">
-                1. Va sur <span className="text-orange-400 font-medium">aistudio.google.com</span><br />
-                2. Crée une clé API gratuite<br />
-                3. Colle-la ci-dessous
-              </p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-zinc-400">Clé API Gemini</label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => { setApiKey(e.target.value); setError(''); }}
-                placeholder="AIza..."
-                className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-orange-500 transition-colors font-mono text-sm"
+        {step !== 'generating' && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-orange-500 rounded-full"
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
               />
             </div>
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            <button
-              onClick={() => {
-                if (!apiKey.trim()) { setError('Entre ta clé API.'); return; }
-                setGeminiKey(apiKey);
-                setStep('identity');
-              }}
-              className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors"
-            >
-              Continuer →
-            </button>
-            <p className="text-xs text-zinc-600 text-center">
-              La clé est stockée uniquement dans ton navigateur.
-            </p>
+            <span className="text-[10px] font-bold text-zinc-600 tabular-nums">{stepIndex}/{STEPS.length - 2}</span>
           </div>
         )}
+      </div>
 
-        {/* STEP 1: Identity */}
-        {step === 'identity' && (
-          <div className="flex flex-col gap-5 pt-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">Qui es-tu ?</h1>
-              <p className="text-zinc-400 text-sm">Tes infos de base pour personnaliser ton expérience.</p>
-            </div>
-            <Field label="Prénom" value={form.name} onChange={(v) => set('name', v)} placeholder="Ex: Alexandre" />
-            <div className="grid grid-cols-3 gap-3">
-              <Field label="Âge" value={form.age} onChange={(v) => set('age', v)} type="number" placeholder="25" />
-              <Field label="Poids (kg)" value={form.weight} onChange={(v) => set('weight', v)} type="number" placeholder="80" />
-              <Field label="Taille (cm)" value={form.height} onChange={(v) => set('height', v)} type="number" placeholder="180" />
-            </div>
-            <Btn label="Continuer →" onClick={() => {
-              if (!form.name || !form.age || !form.weight || !form.height) { setError('Remplis tous les champs.'); return; }
-              setStep('level');
-            }} error={error} />
-          </div>
-        )}
+      {/* Content */}
+      <div className="flex-1 px-5 pb-10 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+          >
+            {/* API KEY */}
+            {step === 'apikey' && (
+              <div className="flex flex-col gap-5 pt-4">
+                <div>
+                  <h1 className="text-[28px] font-black tracking-tight mb-1">Clé Gemini ✦</h1>
+                  <p className="text-zinc-500 text-sm leading-relaxed">
+                    ApexCoach utilise Google Gemini pour générer des programmes sur mesure et analyser tes performances en temps réel.
+                  </p>
+                </div>
 
-        {/* STEP 2: Level + Goal */}
-        {step === 'level' && (
-          <div className="flex flex-col gap-5 pt-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">Niveau & objectif</h1>
-              <p className="text-zinc-400 text-sm">Pour adapter l'intensité et le volume.</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400 mb-2">Expérience</p>
-              <div className="flex gap-2">
-                {EXPERIENCE.map((e) => (
-                  <button key={e.value} onClick={() => set('experience', e.value)}
-                    className={`flex-1 py-3 px-2 rounded-xl border text-center transition-all ${form.experience === e.value ? 'border-orange-500 bg-orange-500/10 text-orange-400' : 'border-zinc-700 text-zinc-400'}`}>
-                    <div className="font-semibold text-sm">{e.label}</div>
-                    <div className="text-[11px] text-zinc-500">{e.desc}</div>
-                  </button>
-                ))}
+                <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-4 flex flex-col gap-2.5 text-sm text-zinc-400">
+                  <Step3Item n="1" text={<>Va sur <span className="text-orange-400 font-semibold">aistudio.google.com</span></>} />
+                  <Step3Item n="2" text="Crée une clé API — c'est gratuit" />
+                  <Step3Item n="3" text="Colle-la ci-dessous" />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Clé API</label>
+                  <input
+                    type="password"
+                    value={apiKey}
+                    onChange={e => { setApiKey(e.target.value); setError(''); }}
+                    placeholder="AIza…"
+                    className="bg-white/[0.04] border border-white/[0.08] rounded-2xl px-4 py-3.5 text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-orange-500/50 transition-colors font-mono text-sm"
+                  />
+                  <p className="text-[10px] text-zinc-700">Stockée uniquement dans ton navigateur — jamais transmise.</p>
+                </div>
+
+                {error && <p className="text-red-400 text-sm font-medium">{error}</p>}
+
+                <button
+                  onClick={() => {
+                    if (!apiKey.trim()) { setError('Entre ta clé API pour continuer.'); return; }
+                    setGeminiKey(apiKey);
+                    next('identity');
+                  }}
+                  className="w-full py-4 bg-orange-500 text-white font-black text-base rounded-2xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-transform"
+                >
+                  Continuer →
+                </button>
               </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400 mb-2">Objectif principal</p>
-              <div className="flex flex-col gap-2">
-                {GOALS.map((g) => (
-                  <button key={g.value} onClick={() => set('goal', g.value)}
-                    className={`flex items-center gap-3 p-3.5 rounded-xl border text-left transition-all ${form.goal === g.value ? 'border-orange-500 bg-orange-500/10' : 'border-zinc-800 bg-zinc-900'}`}>
-                    <span className="text-xl">{g.label.split(' ')[0]}</span>
-                    <div>
-                      <div className="font-semibold text-sm">{g.label.split(' ').slice(1).join(' ')}</div>
-                      <div className="text-[11px] text-zinc-500">{g.desc}</div>
+            )}
+
+            {/* IDENTITY */}
+            {step === 'identity' && (
+              <div className="flex flex-col gap-5 pt-4">
+                <div>
+                  <h1 className="text-[28px] font-black tracking-tight mb-1">Qui es-tu ?</h1>
+                  <p className="text-zinc-500 text-sm">Tes données de base pour calibrer chaque séance.</p>
+                </div>
+
+                <OField label="Prénom" value={form.name} onChange={v => set('name', v)} placeholder="Alex" />
+
+                <div className="grid grid-cols-3 gap-3">
+                  <OField label="Âge" value={form.age} onChange={v => set('age', v)} type="number" placeholder="25" unit="ans" />
+                  <OField label="Poids" value={form.weight} onChange={v => set('weight', v)} type="number" placeholder="80" unit="kg" />
+                  <OField label="Taille" value={form.height} onChange={v => set('height', v)} type="number" placeholder="180" unit="cm" />
+                </div>
+
+                {error && <p className="text-red-400 text-sm font-medium">{error}</p>}
+                <NavButtons
+                  onNext={() => {
+                    if (!form.name || !form.age || !form.weight || !form.height) { setError('Remplis tous les champs.'); return; }
+                    next('status');
+                  }}
+                />
+              </div>
+            )}
+
+            {/* STATUS — the key question a real coach asks first */}
+            {step === 'status' && (
+              <div className="flex flex-col gap-5 pt-4">
+                <div>
+                  <h1 className="text-[28px] font-black tracking-tight mb-1">Où en es-tu ?</h1>
+                  <p className="text-zinc-500 text-sm">C'est la question la plus importante — elle détermine tout le programme.</p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  {CURRENT_STATUS.map(s => (
+                    <button
+                      key={s.value}
+                      onClick={() => set('currentStatus', s.value as UserProfile['currentStatus'])}
+                      className={`flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${
+                        form.currentStatus === s.value
+                          ? 'border-orange-500/50 bg-orange-500/8'
+                          : 'border-white/[0.07] bg-white/[0.02]'
+                      }`}
+                    >
+                      <span className="text-3xl">{s.icon}</span>
+                      <div className="flex-1">
+                        <p className={`font-black text-base ${form.currentStatus === s.value ? 'text-orange-400' : ''}`}>{s.label}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">{s.desc}</p>
+                      </div>
+                      {form.currentStatus === s.value && (
+                        <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Experience level — contextually shown here */}
+                {form.currentStatus && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-2">
+                    <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                      Expérience en musculation
+                    </label>
+                    <div className="flex gap-2">
+                      {EXPERIENCE.map(e => (
+                        <button key={e.value} onClick={() => set('experience', e.value as UserProfile['experience'])}
+                          className={`flex-1 py-3 px-2 rounded-xl border text-center transition-all ${
+                            form.experience === e.value
+                              ? 'border-orange-500/50 bg-orange-500/8 text-orange-400'
+                              : 'border-white/[0.07] bg-white/[0.02] text-zinc-400'
+                          }`}>
+                          <div className="font-bold text-sm">{e.label}</div>
+                          <div className="text-[10px] text-zinc-600 mt-0.5">{e.desc}</div>
+                        </button>
+                      ))}
                     </div>
-                    {form.goal === g.value && <span className="ml-auto text-orange-500">✓</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setStep('identity')} className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-400">←</button>
-              <Btn label="Continuer →" onClick={() => {
-                if (!form.experience || !form.goal) { setError('Fais tes choix.'); return; }
-                setStep('planning');
-              }} error={error} full />
-            </div>
-          </div>
-        )}
+                  </motion.div>
+                )}
 
-        {/* STEP 3: Planning + Equipment */}
-        {step === 'planning' && (
-          <div className="flex flex-col gap-5 pt-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">Planning & équipement</h1>
-              <p className="text-zinc-400 text-sm">Pour concevoir des séances réalistes.</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400 mb-3">Jours d'entraînement par semaine</p>
-              <div className="flex gap-2">
-                {[2, 3, 4, 5, 6].map((d) => (
-                  <button key={d} onClick={() => set('daysPerWeek', String(d))}
-                    className={`flex-1 py-3 rounded-xl border font-bold text-lg transition-all ${form.daysPerWeek === String(d) ? 'border-orange-500 bg-orange-500/10 text-orange-400' : 'border-zinc-700 text-zinc-400'}`}>
-                    {d}
-                  </button>
-                ))}
+                {error && <p className="text-red-400 text-sm font-medium">{error}</p>}
+                <NavButtons
+                  onBack={() => setStep('identity')}
+                  onNext={() => {
+                    if (!form.currentStatus || !form.experience) { setError('Réponds aux deux questions.'); return; }
+                    next('goal');
+                  }}
+                />
               </div>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-zinc-400 mb-2">Équipement disponible</p>
-              <div className="flex flex-wrap gap-2">
-                {EQUIPMENT_OPTIONS.map((item) => (
-                  <button key={item} onClick={() => toggleEquipment(item)}
-                    className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${form.availableEquipment.includes(item) ? 'border-orange-500 bg-orange-500/10 text-orange-400' : 'border-zinc-700 text-zinc-500'}`}>
-                    {item}
-                  </button>
-                ))}
+            )}
+
+            {/* GOAL */}
+            {step === 'goal' && (
+              <div className="flex flex-col gap-5 pt-4">
+                <div>
+                  <h1 className="text-[28px] font-black tracking-tight mb-1">Ton objectif</h1>
+                  <p className="text-zinc-500 text-sm">L'IA calibre chaque paramètre (volume, intensité, fréquence) en fonction de ça.</p>
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                  {GOALS.map(g => (
+                    <button key={g.value} onClick={() => set('goal', g.value as UserProfile['goal'])}
+                      className={`flex items-center gap-4 p-4 rounded-2xl border text-left transition-all ${
+                        form.goal === g.value
+                          ? 'border-orange-500/50 bg-orange-500/8'
+                          : 'border-white/[0.07] bg-white/[0.02]'
+                      }`}>
+                      <span className="text-2xl">{g.icon}</span>
+                      <div className="flex-1">
+                        <p className={`font-black ${form.goal === g.value ? 'text-orange-400' : ''}`}>{g.label}</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">{g.desc}</p>
+                      </div>
+                      {form.goal === g.value && (
+                        <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center flex-shrink-0">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                {error && <p className="text-red-400 text-sm font-medium">{error}</p>}
+                <NavButtons
+                  onBack={() => setStep('status')}
+                  onNext={() => {
+                    if (!form.goal) { setError('Choisis un objectif.'); return; }
+                    next('planning');
+                  }}
+                />
               </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setStep('level')} className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-400">←</button>
-              <Btn label="Continuer →" onClick={() => {
-                if (!form.availableEquipment.length) { setError('Sélectionne au moins un équipement.'); return; }
-                setStep('injuries');
-              }} error={error} full />
-            </div>
-          </div>
-        )}
+            )}
 
-        {/* STEP 4: Injuries */}
-        {step === 'injuries' && (
-          <div className="flex flex-col gap-5 pt-4">
-            <div>
-              <h1 className="text-2xl font-bold mb-1">Blessures & restrictions</h1>
-              <p className="text-zinc-400 text-sm">Pour éviter les exercices contre-indiqués.</p>
-            </div>
-            <textarea value={form.injuries} onChange={(e) => set('injuries', e.target.value)}
-              placeholder="Ex: douleur épaule droite, opération genou en 2023..." rows={4}
-              className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-600 resize-none focus:outline-none focus:border-orange-500" />
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-            <div className="flex gap-3">
-              <button onClick={() => setStep('planning')} className="px-4 py-3 rounded-xl border border-zinc-700 text-zinc-400">←</button>
-              <button onClick={generateAndSave} className="flex-1 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors">
-                🚀 Générer mon programme
-              </button>
-            </div>
-          </div>
-        )}
+            {/* PLANNING — days, duration, environment, equipment */}
+            {step === 'planning' && (
+              <div className="flex flex-col gap-6 pt-4">
+                <div>
+                  <h1 className="text-[28px] font-black tracking-tight mb-1">Planning & lieu</h1>
+                  <p className="text-zinc-500 text-sm">Un vrai coach adapte le programme à tes contraintes réelles.</p>
+                </div>
 
-        {/* STEP 5: Generating */}
-        {step === 'generating' && (
-          <div className="flex flex-col items-center justify-center gap-6 pt-16">
-            <div className="w-20 h-20 rounded-2xl bg-orange-500/20 flex items-center justify-center">
-              <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-            <div className="text-center">
-              <h2 className="text-xl font-bold mb-2">Gemini génère ton programme…</h2>
-              <p className="text-zinc-400 text-sm">Personnalisation en cours selon ton profil</p>
-            </div>
-          </div>
-        )}
+                {/* Days per week */}
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-3">
+                    Jours par semaine
+                  </label>
+                  <div className="flex gap-2">
+                    {[2, 3, 4, 5, 6].map(d => (
+                      <button key={d} onClick={() => set('daysPerWeek', String(d))}
+                        className={`flex-1 py-3.5 rounded-xl border font-black text-xl transition-all ${
+                          form.daysPerWeek === String(d)
+                            ? 'border-orange-500/50 bg-orange-500/8 text-orange-400'
+                            : 'border-white/[0.07] bg-white/[0.02] text-zinc-400'
+                        }`}>
+                        {d}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Session duration */}
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-3">
+                    Durée par séance
+                  </label>
+                  <div className="flex gap-2">
+                    {SESSION_DURATIONS.map(d => (
+                      <button key={d.value} onClick={() => set('sessionDuration', d.value)}
+                        className={`flex-1 flex flex-col items-center py-3 rounded-xl border transition-all ${
+                          form.sessionDuration === d.value
+                            ? 'border-orange-500/50 bg-orange-500/8 text-orange-400'
+                            : 'border-white/[0.07] bg-white/[0.02] text-zinc-400'
+                        }`}>
+                        <span className="font-black text-sm">{d.label}</span>
+                        <span className="text-[9px] text-zinc-600 mt-0.5">{d.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Environment */}
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-3">
+                    Où t'entraînes-tu ?
+                  </label>
+                  <div className="flex gap-2">
+                    {ENVIRONMENTS.map(e => (
+                      <button key={e.value} onClick={() => set('trainingEnvironment', e.value as UserProfile['trainingEnvironment'])}
+                        className={`flex-1 flex flex-col items-center py-3.5 rounded-xl border transition-all ${
+                          form.trainingEnvironment === e.value
+                            ? 'border-orange-500/50 bg-orange-500/8'
+                            : 'border-white/[0.07] bg-white/[0.02]'
+                        }`}>
+                        <span className="text-2xl">{e.icon}</span>
+                        <span className={`text-xs font-bold mt-1 ${form.trainingEnvironment === e.value ? 'text-orange-400' : 'text-zinc-500'}`}>{e.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Equipment */}
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest block mb-3">
+                    Équipement disponible
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {EQUIPMENT_OPTIONS.map(item => (
+                      <button key={item.label} onClick={() => toggleEquipment(item.label)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                          form.availableEquipment.includes(item.label)
+                            ? 'border-orange-500/50 bg-orange-500/8 text-orange-400'
+                            : 'border-white/[0.07] bg-white/[0.02] text-zinc-500'
+                        }`}>
+                        <span>{item.icon}</span> {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {error && <p className="text-red-400 text-sm font-medium">{error}</p>}
+                <NavButtons
+                  onBack={() => setStep('goal')}
+                  onNext={() => {
+                    if (!form.trainingEnvironment) { setError('Indique où tu t\'entraînes.'); return; }
+                    if (!form.availableEquipment.length) { setError('Sélectionne au moins un équipement.'); return; }
+                    next('injuries');
+                  }}
+                />
+              </div>
+            )}
+
+            {/* INJURIES + SPORT BACKGROUND */}
+            {step === 'injuries' && (
+              <div className="flex flex-col gap-5 pt-4">
+                <div>
+                  <h1 className="text-[28px] font-black tracking-tight mb-1">Derniers détails</h1>
+                  <p className="text-zinc-500 text-sm">Ces infos évitent les blessures et personnalisent encore plus le programme.</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                    Pratique sportive (hors muscu)
+                  </label>
+                  <input
+                    value={form.sportBackground}
+                    onChange={e => set('sportBackground', e.target.value)}
+                    placeholder="Ex: foot amateur, tennis 2x/sem, natation..."
+                    className="bg-white/[0.03] border border-white/[0.07] rounded-2xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none focus:border-orange-500/40 transition-colors"
+                  />
+                  <p className="text-[10px] text-zinc-700">Optionnel — mais ça change tout pour le programme</p>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">
+                    Blessures & restrictions médicales
+                  </label>
+                  <textarea
+                    value={form.injuries}
+                    onChange={e => set('injuries', e.target.value)}
+                    placeholder="Ex: douleur épaule droite, opération genou 2023, lombalgie chronique..."
+                    rows={3}
+                    className="w-full bg-white/[0.03] border border-white/[0.07] rounded-2xl px-4 py-3 text-sm text-zinc-200 placeholder-zinc-700 resize-none focus:outline-none focus:border-orange-500/40 transition-colors"
+                  />
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-500/8 border border-red-500/20 rounded-xl">
+                    <p className="text-red-400 text-sm font-medium">{error}</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 mt-1">
+                  <button onClick={() => setStep('planning')}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl border border-white/[0.07] text-zinc-400 flex-shrink-0">
+                    ←
+                  </button>
+                  <button onClick={generateAndSave}
+                    className="flex-1 py-4 bg-orange-500 text-white font-black text-base rounded-2xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-transform">
+                    🚀 Générer mon programme
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* GENERATING */}
+            {step === 'generating' && (
+              <div className="flex flex-col items-center justify-center gap-8 pt-20 text-center">
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-3xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                    <div className="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full animate-ping opacity-60" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight mb-2">Coach Elite analyse…</h2>
+                  <p className="text-zinc-500 text-sm leading-relaxed max-w-[260px]">
+                    Création d'un programme 100% personnalisé selon ton profil complet
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {['Profil', 'Objectifs', 'Équipement', 'Programme'].map((label, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.4 }}
+                      className="px-3 py-1.5 bg-white/[0.04] border border-white/[0.07] rounded-lg text-[10px] font-bold text-zinc-600"
+                    >
+                      {label}
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
 }
 
-function Field({ label, value, onChange, type = 'text', placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string;
+function Step3Item({ n, text }: { n: string; text: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">{n}</span>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function OField({ label, value, onChange, type = 'text', placeholder, unit }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; unit?: string;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-zinc-400">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-orange-500 transition-colors" />
+      <label className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">{label}</label>
+      <div className="relative">
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          inputMode={type === 'number' ? 'numeric' : undefined}
+          className={`w-full bg-white/[0.03] border border-white/[0.07] rounded-xl px-3 py-3 text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-orange-500/40 transition-colors text-sm font-medium ${unit ? 'pr-10' : ''}`}
+        />
+        {unit && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-600 font-bold">{unit}</span>}
+      </div>
     </div>
   );
 }
 
-function Btn({ label, onClick, error, full }: { label: string; onClick: () => void; error?: string; full?: boolean }) {
+function NavButtons({ onBack, onNext }: { onBack?: () => void; onNext: () => void }) {
   return (
-    <div className={`flex flex-col gap-1.5 ${full ? 'flex-1' : ''}`}>
-      {error && <p className="text-red-400 text-xs">{error}</p>}
-      <button onClick={onClick} className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors">{label}</button>
+    <div className="flex gap-3 mt-2">
+      {onBack && (
+        <button onClick={onBack}
+          className="w-12 h-12 flex items-center justify-center rounded-xl border border-white/[0.07] text-zinc-400 flex-shrink-0">
+          ←
+        </button>
+      )}
+      <button onClick={onNext}
+        className="flex-1 py-4 bg-orange-500 text-white font-black text-base rounded-2xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-transform">
+        Continuer →
+      </button>
     </div>
   );
 }

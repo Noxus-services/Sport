@@ -26,8 +26,8 @@ async function call(action: string, payload: object): Promise<Response> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     const msg: string = err.error ?? `HTTP ${res.status}`;
-    const isKeyError = res.status === 401 || msg.toLowerCase().includes('api_key_invalid') || msg.toLowerCase().includes('invalid api key');
-    if (isKeyError) throw new Error('Clé API invalide — vérifie-la dans Profil.');
+    // Only show "Clé invalide" when the server explicitly says it's a key error (HTTP 401)
+    if (res.status === 401) throw new Error('Clé API invalide — vérifie-la dans Profil.');
     if (res.status === 403) throw new Error('Active l\'API Gemini sur aistudio.google.com.');
     if (res.status === 429) throw new Error('Quota Gemini dépassé — réessaie dans 1 minute.');
     throw new Error(msg.slice(0, 300) || `Erreur ${res.status}`);
@@ -59,6 +59,23 @@ export async function sendCoachMessage(
 ): Promise<string> {
   const res = await call('chat', { messages, userProfile, recentSessions: recentSessions ?? [], currentProgram: currentProgram ?? null });
   return (await res.json()).reply;
+}
+
+export async function sendAgentMessage(
+  message: string,
+  userProfile: UserProfile | null,
+  recentSessions?: WorkoutSession[],
+  currentProgram?: object | null,
+  coachHistory?: Array<{ role: 'user' | 'assistant'; content: string }>
+): Promise<{ reply: string; action?: { type: 'program' | 'supplements'; data: object } | null }> {
+  const res = await call('agent', {
+    message,
+    userProfile,
+    recentSessions: recentSessions ?? [],
+    currentProgram: currentProgram ?? null,
+    coachHistory: (coachHistory ?? []).slice(-20),
+  });
+  return res.json();
 }
 
 export async function generateProgram(
