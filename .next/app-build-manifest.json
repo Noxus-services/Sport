@@ -1,0 +1,98 @@
+{
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/app/_not-found/page-8d423d7dbb1c58e2.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/css/52ac74d1aa924fdc.css",
+      "static/chunks/176-dbfe7d379a5d476e.js",
+      "static/chunks/app/layout-9a0553775f464462.js"
+    ],
+    "/coach/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/902-95d980c17e7b2bdf.js",
+      "static/chunks/app/coach/page-7d0feb3c7da2afc8.js"
+    ],
+    "/onboarding/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/902-95d980c17e7b2bdf.js",
+      "static/chunks/app/onboarding/page-cca57becacf62c5e.js"
+    ],
+    "/workout/active/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/902-95d980c17e7b2bdf.js",
+      "static/chunks/app/workout/active/page-2c49ae22cc4ad441.js"
+    ],
+    "/dashboard/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/176-dbfe7d379a5d476e.js",
+      "static/chunks/app/dashboard/page-b2fa53a833f54a5d.js"
+    ],
+    "/programs/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/902-95d980c17e7b2bdf.js",
+      "static/chunks/app/programs/page-cdd0f16332943854.js"
+    ],
+    "/history/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/app/history/page-b9d0025adca2ac0f.js"
+    ],
+    "/workout/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/app/workout/page-3ddac1d1dfb9856f.js"
+    ],
+    "/profile/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/902-95d980c17e7b2bdf.js",
+      "static/chunks/app/profile/page-c2a4feceae06a866.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-32b99883bf220ffe.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/493-53ec71cd1117a1e4.js",
+      "static/chunks/main-app-b74e5d845139f9e9.js",
+      "static/chunks/278-a76b6e8623ae5977.js",
+      "static/chunks/app/page-a3ceede4437ccf09.js"
+    ]
+  }
+}

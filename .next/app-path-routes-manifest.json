@@ -1,0 +1,12 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/coach/page": "/coach",
+  "/onboarding/page": "/onboarding",
+  "/workout/active/page": "/workout/active",
+  "/dashboard/page": "/dashboard",
+  "/programs/page": "/programs",
+  "/history/page": "/history",
+  "/workout/page": "/workout",
+  "/profile/page": "/profile",
+  "/page": "/"
+}
