@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, upsertUserProfile } from '@/db/userProfileService';
-import { getGeminiKey, setGeminiKey } from '@/lib/gemini-client';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getGeminiKey, setGeminiKey, testGeminiKey } from '@/lib/gemini-client';
 import type { UserProfile } from '@/db/database';
 
 const GOALS = ['force', 'hypertrophie', 'endurance', 'perte_poids', 'athletisme'] as const;
@@ -176,17 +175,15 @@ export default function ProfilePage() {
                 setKeyTest('testing');
                 setKeyTestMsg('');
                 try {
-                  const m = new GoogleGenerativeAI(key).getGenerativeModel({ model: 'gemini-1.5-flash' });
-                  await m.generateContent('Réponds juste "ok"');
+                  setGeminiKey(key);
+                  await testGeminiKey(key);
                   setKeyTest('ok');
                   setKeyTestMsg('Clé valide ✓');
+                  setKeySaved(true);
+                  setTimeout(() => setKeySaved(false), 2000);
                 } catch (e: unknown) {
                   setKeyTest('error');
-                  const msg = e instanceof Error ? e.message : String(e);
-                  if (msg.includes('API_KEY_INVALID') || msg.includes('400')) setKeyTestMsg('Clé invalide');
-                  else if (msg.includes('403')) setKeyTestMsg('Permission refusée');
-                  else if (msg.includes('429')) setKeyTestMsg('Quota dépassé');
-                  else setKeyTestMsg('Erreur réseau');
+                  setKeyTestMsg(e instanceof Error ? e.message : 'Erreur inconnue');
                 }
               }}
               className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition-all border ${
