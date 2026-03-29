@@ -21,6 +21,16 @@ function model(name = 'gemini-1.5-flash') {
   return new GoogleGenerativeAI(key).getGenerativeModel({ model: name });
 }
 
+function parseGeminiError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (!getGeminiKey()) return 'Clé API manquante — va dans Profil pour l\'ajouter.';
+  if (msg.includes('API_KEY_INVALID') || msg.includes('400')) return 'Clé API invalide — vérifie-la dans Profil.';
+  if (msg.includes('PERMISSION_DENIED') || msg.includes('403')) return 'Clé API sans permission — active l\'API Gemini sur aistudio.google.com.';
+  if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) return 'Quota Gemini dépassé — réessaie dans 1 minute.';
+  if (msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')) return 'Erreur réseau — vérifie ta connexion.';
+  return `Erreur Gemini : ${msg.slice(0, 120)}`;
+}
+
 // ─── Coach chat ────────────────────────────────────────────────────────────────
 export async function sendCoachMessage(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
@@ -47,8 +57,12 @@ Réponds de façon concise et pratique.`;
     ],
   });
 
-  const result = await chat.sendMessage(messages[messages.length - 1].content);
-  return result.response.text();
+  try {
+    const result = await chat.sendMessage(messages[messages.length - 1].content);
+    return result.response.text();
+  } catch (e) {
+    throw new Error(parseGeminiError(e));
+  }
 }
 
 // ─── Generate program ──────────────────────────────────────────────────────────
@@ -104,9 +118,13 @@ Règles :
 - 4-6 exercices par séance, 2-4 semaines de progression
 - Évite les exercices contre-indiqués avec les blessures`;
 
-  const result = await m.generateContent(prompt);
-  const text = result.response.text().trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-  return JSON.parse(text);
+  try {
+    const result = await m.generateContent(prompt);
+    const text = result.response.text().trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+    return JSON.parse(text);
+  } catch (e) {
+    throw new Error(parseGeminiError(e));
+  }
 }
 
 // ─── Analyze workout ───────────────────────────────────────────────────────────
@@ -132,6 +150,10 @@ ${exerciseSummary}
 
 Donne un feedback court (3-5 phrases) : ce qui était bien, un point d'amélioration, un conseil pour la prochaine séance.`;
 
-  const result = await m.generateContent(prompt);
-  return result.response.text();
+  try {
+    const result = await m.generateContent(prompt);
+    return result.response.text();
+  } catch (e) {
+    throw new Error(parseGeminiError(e));
+  }
 }
