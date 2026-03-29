@@ -2,29 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800;14..32,900&display=swap');
 
-* {
-  -webkit-tap-highlight-color: transparent;
-}
+* { -webkit-tap-highlight-color: transparent; }
 
 body {
-  background-color: #09090b;
+  background: #0a0a0a;
   color: #fafafa;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Safe area for mobile notch */
-.safe-top    { padding-top: env(safe-area-inset-top, 0px); }
+.safe-top    { padding-top: max(env(safe-area-inset-top), 14px); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+::-webkit-scrollbar { display: none; }
 
-/* Number input — hide spin buttons */
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
 input[type=number] { -moz-appearance: textfield; }
+input[type=range] { accent-color: #f97316; }
+
+/* Card styles */
+.card {
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20px;
+}
+.card-elevated {
+  background: #161616;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+}
+
+/* Orange glow button */
+.btn-primary {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  box-shadow: 0 8px 24px rgba(249,115,22,0.25);
+  border-radius: 16px;
+  font-weight: 700;
+  color: white;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn-primary:active { transform: scale(0.97); box-shadow: 0 4px 12px rgba(249,115,22,0.2); }

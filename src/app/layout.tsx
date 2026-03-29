@@ -7,14 +7,8 @@ export const metadata: Metadata = {
   title: 'ApexCoach',
   description: 'Ton coach IA personnel pour la musculation',
   manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'ApexCoach',
-  },
-  other: {
-    'mobile-web-app-capable': 'yes',
-  },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'ApexCoach' },
+  other: { 'mobile-web-app-capable': 'yes' },
 };
 
 export const viewport: Viewport = {
@@ -22,7 +16,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#09090b',
+  themeColor: '#0a0a0a',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -31,9 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
-      <body className="min-h-screen bg-zinc-950 text-zinc-50 antialiased">
+      <body className="min-h-screen bg-[#0a0a0a] text-zinc-50 antialiased">
         <ServiceWorkerRegister />
-        <main className="pb-20 min-h-screen">{children}</main>
+        <main className="pb-28 min-h-screen">{children}</main>
         <BottomNav />
       </body>
     </html>

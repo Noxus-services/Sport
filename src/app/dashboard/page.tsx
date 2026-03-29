@@ -19,10 +19,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function load() {
       const [p, td, sessions, active] = await Promise.all([
-        getUserProfile(),
-        getTodayProgramDay(),
-        getRecentSessions(5),
-        getActiveSession(),
+        getUserProfile(), getTodayProgramDay(), getRecentSessions(5), getActiveSession(),
       ]);
       if (!p) { router.replace('/onboarding'); return; }
       setProfile(p);
@@ -36,183 +33,192 @@ export default function DashboardPage() {
 
   async function handleStartWorkout() {
     if (!todayDay) return;
-    if (activeSession?.id) {
-      router.push('/workout/active');
-      return;
-    }
-    const id = await startWorkoutSession(todayDay.name, `day-${todayDay.dayIndex}`);
+    if (activeSession?.id) { router.push('/workout/active'); return; }
+    await startWorkoutSession(todayDay.name, `day-${todayDay.dayIndex}`);
     router.push('/workout/active');
   }
 
   if (loading) return <LoadingScreen />;
 
-  const weekTotal = recentSessions
-    .filter((s) => {
-      const d = new Date(s.date);
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      weekStart.setHours(0, 0, 0, 0);
-      return d >= weekStart;
-    }).length;
-
-  const daysOfWeek = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   const today = new Date().getDay();
-  const greeting = getGreeting();
+  const daysOfWeek = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const weekStart = new Date(); weekStart.setDate(new Date().getDate() - today); weekStart.setHours(0,0,0,0);
+  const weekSessions = recentSessions.filter(s => new Date(s.date) >= weekStart);
+  const weekVolume = Math.round(weekSessions.reduce((t, s) => t + s.totalVolume, 0));
+  const avgDuration = recentSessions.length
+    ? Math.round(recentSessions.reduce((t, s) => t + s.duration, 0) / recentSessions.length) : 0;
+  const allPRs = recentSessions.flatMap(s => s.prsAchieved ?? []);
+
+  const h = new Date().getHours();
+  const greeting = h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir';
 
   return (
-    <div className="px-4 pt-12 pb-4 flex flex-col gap-5">
+    <div className="flex flex-col gap-5 pt-14 pb-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-5">
         <div>
-          <p className="text-zinc-500 text-sm">{greeting}</p>
-          <h1 className="text-2xl font-bold">{profile?.name} 👋</h1>
+          <p className="text-zinc-500 text-sm font-medium">{greeting},</p>
+          <h1 className="text-[28px] font-black tracking-tight leading-tight">{profile?.name ?? 'Athlète'}</h1>
         </div>
-        <Link href="/profile" className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-lg font-bold text-orange-400">
-          {profile?.name?.[0]?.toUpperCase() ?? '?'}
+        <Link href="/profile">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500/30 to-orange-600/10 border border-orange-500/25 flex items-center justify-center text-xl font-black text-orange-400 shadow-lg shadow-orange-500/10">
+            {profile?.name?.[0]?.toUpperCase() ?? '?'}
+          </div>
         </Link>
       </div>
 
       {/* Active session banner */}
       {activeSession && (
-        <Link href="/workout/active" className="block bg-orange-500/20 border border-orange-500/50 rounded-2xl p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-400 text-xs font-semibold uppercase tracking-wide">Séance en cours</p>
-              <p className="font-bold">{activeSession.dayName}</p>
+        <div className="mx-5">
+          <Link href="/workout/active" className="flex items-center justify-between bg-orange-500/10 border border-orange-500/30 rounded-2xl px-4 py-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+              <div>
+                <p className="text-xs font-semibold text-orange-400 uppercase tracking-wide">En cours</p>
+                <p className="font-bold text-sm">{activeSession.dayName}</p>
+              </div>
             </div>
-            <span className="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-sm font-semibold">Reprendre →</span>
-          </div>
-        </Link>
-      )}
-
-      {/* Today's workout card */}
-      {todayDay ? (
-        <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide mb-1">Aujourd'hui</p>
-              <h2 className="text-xl font-bold">{todayDay.name}</h2>
-              <p className="text-zinc-400 text-sm">{todayDay.focus}</p>
+            <div className="bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-xl">
+              Reprendre →
             </div>
-            <div className="text-right">
-              <span className="text-2xl">🏋️</span>
-              <p className="text-xs text-zinc-500">{todayDay.estimatedDuration} min</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {todayDay.exercises.slice(0, 4).map((ex, i) => (
-              <span key={i} className="text-xs bg-zinc-800 text-zinc-400 px-2.5 py-1 rounded-lg">
-                {ex.name}
-              </span>
-            ))}
-            {todayDay.exercises.length > 4 && (
-              <span className="text-xs bg-zinc-800 text-zinc-500 px-2.5 py-1 rounded-lg">
-                +{todayDay.exercises.length - 4}
-              </span>
-            )}
-          </div>
-          {!activeSession && (
-            <button
-              onClick={handleStartWorkout}
-              className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors"
-            >
-              🚀 Démarrer la séance
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 text-center">
-          <p className="text-4xl mb-2">😴</p>
-          <p className="font-semibold">Repos aujourd'hui</p>
-          <p className="text-zinc-500 text-sm mt-1">Récupère bien !</p>
-          <Link href="/workout" className="mt-3 block text-orange-400 text-sm font-medium">
-            Séance libre →
           </Link>
         </div>
       )}
 
-      {/* Weekly progress */}
-      <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
-        <div className="flex items-center justify-between mb-3">
-          <p className="font-semibold">Cette semaine</p>
-          <span className="text-orange-400 font-bold">{weekTotal}/{profile?.daysPerWeek ?? 4}</span>
-        </div>
-        <div className="flex gap-1.5">
-          {daysOfWeek.map((day, i) => {
-            const hasSession = recentSessions.some((s) => {
-              const d = new Date(s.date);
-              return d.getDay() === i;
-            });
-            const isToday = i === today;
-            return (
-              <div key={day} className="flex-1 flex flex-col items-center gap-1">
-                <div className={`w-full h-1.5 rounded-full ${
-                  hasSession ? 'bg-orange-500' : 'bg-zinc-800'
-                }`} />
-                <span className={`text-[10px] ${isToday ? 'text-orange-400 font-bold' : 'text-zinc-600'}`}>
-                  {day}
-                </span>
+      {/* Today's workout hero */}
+      <div className="mx-5">
+        {todayDay ? (
+          <div className="card overflow-hidden">
+            <div className="p-5">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-xs font-bold text-orange-500 uppercase tracking-widest mb-1.5">Aujourd'hui</p>
+                  <h2 className="text-2xl font-black tracking-tight">{todayDay.name}</h2>
+                  <p className="text-zinc-400 text-sm mt-0.5">{todayDay.focus}</p>
+                </div>
+                <div className="text-right">
+                  <div className="w-11 h-11 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f97316" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-1 font-medium">{todayDay.estimatedDuration}min</p>
+                </div>
               </div>
-            );
-          })}
+
+              <div className="flex flex-wrap gap-1.5 mb-5">
+                {todayDay.exercises.slice(0, 4).map((ex, i) => (
+                  <span key={i} className="text-xs bg-white/5 border border-white/[0.07] text-zinc-300 px-2.5 py-1 rounded-lg font-medium">
+                    {ex.name}
+                  </span>
+                ))}
+                {todayDay.exercises.length > 4 && (
+                  <span className="text-xs bg-white/5 border border-white/[0.07] text-zinc-500 px-2.5 py-1 rounded-lg">
+                    +{todayDay.exercises.length - 4}
+                  </span>
+                )}
+              </div>
+
+              {!activeSession && (
+                <button onClick={handleStartWorkout} className="btn-primary w-full py-4 text-base">
+                  Démarrer la séance
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="card p-5 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-zinc-800 mx-auto flex items-center justify-center text-2xl mb-3">😴</div>
+            <p className="font-bold text-lg">Repos mérité</p>
+            <p className="text-zinc-500 text-sm mt-1">Récupère bien aujourd'hui</p>
+            <Link href="/workout" className="inline-block mt-4 text-orange-400 text-sm font-semibold">
+              Lancer une séance libre →
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Weekly progress */}
+      <div className="mx-5">
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-4">
+            <p className="font-bold text-sm">Cette semaine</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-orange-500 font-black text-lg">{weekSessions.length}</span>
+              <span className="text-zinc-600 text-sm font-medium">/ {profile?.daysPerWeek ?? 4}</span>
+            </div>
+          </div>
+          <div className="flex gap-1.5">
+            {daysOfWeek.map((day, i) => {
+              const hasSession = recentSessions.some(s => new Date(s.date) >= weekStart && new Date(s.date).getDay() === i);
+              const isToday = i === today;
+              return (
+                <div key={day} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className={`w-full h-8 rounded-lg flex items-center justify-center transition-all ${
+                    hasSession ? 'bg-orange-500 shadow-md shadow-orange-500/20' :
+                    isToday ? 'bg-orange-500/10 border border-orange-500/30' : 'bg-white/[0.04]'
+                  }`}>
+                    {hasSession && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    )}
+                    {isToday && !hasSession && <div className="w-1 h-1 rounded-full bg-orange-500" />}
+                  </div>
+                  <span className={`text-[9px] font-bold uppercase tracking-wide ${isToday ? 'text-orange-400' : 'text-zinc-600'}`}>{day}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard
-          label="Volume total"
-          value={`${Math.round(recentSessions.reduce((s, r) => s + r.totalVolume, 0) / 1000)}T`}
-          sub="cette semaine"
-          color="orange"
-        />
-        <StatCard
-          label="Séances"
-          value={String(recentSessions.length)}
-          sub="récentes"
-          color="blue"
-        />
-        <StatCard
-          label="Durée moy."
-          value={`${Math.round(recentSessions.reduce((s, r) => s + r.duration, 0) / Math.max(recentSessions.length, 1))}m`}
-          sub="par séance"
-          color="green"
-        />
+      <div className="flex gap-3 px-5">
+        <StatCard icon="⚡" value={weekVolume > 0 ? `${weekVolume >= 1000 ? (weekVolume/1000).toFixed(1)+'T' : weekVolume+'kg'}` : '—'} label="Volume" />
+        <StatCard icon="🔥" value={String(recentSessions.length)} label="Séances" />
+        <StatCard icon="⏱" value={avgDuration > 0 ? `${avgDuration}m` : '—'} label="Durée moy." />
       </div>
 
-      {/* Recent PRs */}
-      {recentSessions.flatMap((s) => s.prsAchieved ?? []).length > 0 && (
-        <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800">
-          <p className="font-semibold mb-3">🏆 PRs récents</p>
-          <div className="flex flex-col gap-2">
-            {recentSessions.flatMap((s) => s.prsAchieved ?? []).slice(0, 3).map((pr, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="text-sm text-zinc-300">{pr.exerciseName}</span>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-orange-400">{pr.value.toFixed(1)} kg</span>
-                  <span className="text-xs text-zinc-600 ml-1">(+{(pr.value - pr.previousValue).toFixed(1)})</span>
+      {/* PRs */}
+      {allPRs.length > 0 && (
+        <div className="mx-5">
+          <div className="card p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-base">🏆</span>
+              <p className="font-bold text-sm">Records récents</p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {allPRs.slice(0, 3).map((pr, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <p className="text-sm text-zinc-300 font-medium">{pr.exerciseName}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-black text-orange-400">{pr.value.toFixed(1)}kg</span>
+                    <span className="text-xs text-emerald-500 font-semibold">+{(pr.value - pr.previousValue).toFixed(1)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Quick links */}
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/coach" className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 flex items-center gap-3">
-          <span className="text-2xl">🤖</span>
+      {/* Quick actions */}
+      <div className="flex gap-3 px-5">
+        <Link href="/coach" className="flex-1 card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round"><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5L12 2z"/></svg>
+          </div>
           <div>
-            <p className="font-semibold text-sm">Coach IA</p>
-            <p className="text-zinc-500 text-xs">Pose une question</p>
+            <p className="font-bold text-sm">Coach IA</p>
+            <p className="text-zinc-500 text-xs">Demande conseil</p>
           </div>
         </Link>
-        <Link href="/programs" className="bg-zinc-900 rounded-xl p-4 border border-zinc-800 flex items-center gap-3">
-          <span className="text-2xl">📋</span>
+        <Link href="/programs" className="flex-1 card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </div>
           <div>
-            <p className="font-semibold text-sm">Programme</p>
-            <p className="text-zinc-500 text-xs">Voir le planning</p>
+            <p className="font-bold text-sm">Programme</p>
+            <p className="text-zinc-500 text-xs">Planning IA</p>
           </div>
         </Link>
       </div>
@@ -220,19 +226,12 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({ label, value, sub, color }: {
-  label: string; value: string; sub: string; color: 'orange' | 'blue' | 'green';
-}) {
-  const colors = {
-    orange: 'text-orange-400',
-    blue: 'text-blue-400',
-    green: 'text-green-400',
-  };
+function StatCard({ icon, value, label }: { icon: string; value: string; label: string }) {
   return (
-    <div className="bg-zinc-900 rounded-xl p-3 border border-zinc-800">
-      <p className={`text-xl font-bold ${colors[color]}`}>{value}</p>
-      <p className="text-zinc-300 text-xs font-medium">{label}</p>
-      <p className="text-zinc-600 text-[10px]">{sub}</p>
+    <div className="flex-1 card p-3.5">
+      <span className="text-lg">{icon}</span>
+      <p className="text-xl font-black text-white mt-1.5">{value}</p>
+      <p className="text-zinc-500 text-[11px] font-medium mt-0.5">{label}</p>
     </div>
   );
 }
@@ -243,11 +242,4 @@ function LoadingScreen() {
       <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Bonjour,';
-  if (h < 18) return 'Bon après-midi,';
-  return 'Bonsoir,';
 }
