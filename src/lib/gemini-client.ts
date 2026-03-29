@@ -26,7 +26,8 @@ async function call(action: string, payload: object): Promise<Response> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
     const msg: string = err.error ?? `HTTP ${res.status}`;
-    if (res.status === 401 || msg.toLowerCase().includes('api_key') || msg.toLowerCase().includes('invalid')) throw new Error('Clé API invalide — vérifie-la dans Profil.');
+    const isKeyError = res.status === 401 || msg.toLowerCase().includes('api_key_invalid') || msg.toLowerCase().includes('invalid api key');
+    if (isKeyError) throw new Error('Clé API invalide — vérifie-la dans Profil.');
     if (res.status === 403) throw new Error('Active l\'API Gemini sur aistudio.google.com.');
     if (res.status === 429) throw new Error('Quota Gemini dépassé — réessaie dans 1 minute.');
     throw new Error(msg.slice(0, 300) || `Erreur ${res.status}`);
