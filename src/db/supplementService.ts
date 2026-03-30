@@ -2,7 +2,8 @@ import { db } from './database';
 import type { SupplementReminder } from './database';
 
 export async function getSupplementReminders(): Promise<SupplementReminder[]> {
-  return db.supplementReminders.orderBy('time').toArray();
+  const all = await db.supplementReminders.toArray();
+  return all.sort((a, b) => a.time.localeCompare(b.time));
 }
 
 export async function saveSupplementReminders(reminders: Omit<SupplementReminder, 'id'>[]): Promise<void> {
