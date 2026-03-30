@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getUserProfile } from '@/db/userProfileService';
 import { getActiveProgram } from '@/db/programService';
 import { getRecentSessions } from '@/db/workoutService';
+
 import { getSupplementReminders, saveSupplementReminders, toggleReminder, updateReminderTime } from '@/db/supplementService';
 import { requestNotificationPermission, getNotificationPermission, scheduleTodayReminders, formatReminderTime, DAY_LABELS } from '@/lib/notifications';
-import { getGeminiKey } from '@/lib/gemini-client';
+import { sendAgentMessage, getGeminiKey } from '@/lib/gemini-client';
 import type { SupplementReminder } from '@/db/database';
 
 export default function RemindersPage() {
@@ -46,8 +47,7 @@ export default function RemindersPage() {
   }
 
   async function handleGenerate() {
-    const key = getGeminiKey();
-    if (!key) { setError('Configure ta clé API Gemini dans le Profil.'); return; }
+    if (!getGeminiKey()) { setError('Configure ta clé API Gemini dans le Profil.'); return; }
     setGenerating(true); setError('');
     try {
       const [profile, program, sessions] = await Promise.all([
@@ -57,21 +57,29 @@ export default function RemindersPage() {
       ]);
       if (!profile) { setError('Complète ton profil d\'abord.'); setGenerating(false); return; }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/gemini`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'supplement_schedule', key, userProfile: profile, currentProgram: program, recentSessions: sessions }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`);
+      const result = await sendAgentMessage(
+        'Planifie mes suppléments en fonction de mon profil et de mon programme actuel.',
+        profile,
+        sessions,
+        program,
+        [],
+      );
 
-      const newReminders: Omit<SupplementReminder, 'id'>[] = (data.reminders as Omit<SupplementReminder, 'id' | 'generatedAt'>[]).map(r => ({
-        ...r,
-        enabled: true,
-        generatedAt: new Date(),
-      }));
-      await saveSupplementReminders(newReminders);
-      setReminders(await getSupplementReminders());
+      if (result.action?.type === 'supplements') {
+        const raw = result.action.data as any;
+        const list: Omit<SupplementReminder, 'id' | 'generatedAt'>[] = Array.isArray(raw)
+          ? raw
+          : (raw.reminders ?? []);
+        const newReminders: Omit<SupplementReminder, 'id'>[] = list.map(r => ({
+          ...r,
+          enabled: true,
+          generatedAt: new Date(),
+        }));
+        await saveSupplementReminders(newReminders);
+        setReminders(await getSupplementReminders());
+      } else {
+        setError('Le coach n\'a pas généré de planning — réessaie.');
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Erreur lors de la génération.');
     }
