@@ -19,8 +19,15 @@ export default function RemindersPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setNotifPerm(getNotificationPermission());
-    getSupplementReminders().then(r => { setReminders(r); setLoading(false); });
+    const perm = getNotificationPermission();
+    setNotifPerm(perm);
+    // Auto-request permission if not yet decided
+    if (perm === 'default') {
+      requestNotificationPermission().then(setNotifPerm);
+    }
+    getSupplementReminders()
+      .then(r => { setReminders(r); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
   // Schedule notifications whenever reminders change
