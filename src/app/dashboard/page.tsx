@@ -9,7 +9,7 @@ import { getActiveProgram, getTodayProgramDay } from '@/db/programService';
 import { getRecentSessions, getActiveSession, startWorkoutSession } from '@/db/workoutService';
 import type { UserProfile, ProgramDay, WorkoutSession } from '@/db/database';
 
-const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 28 } } };
+const fadeUp = { hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 28 } } };
 const stagger = { show: { transition: { staggerChildren: 0.07 } } };
 
 export default function DashboardPage() {
@@ -142,7 +142,7 @@ export default function DashboardPage() {
                     key={i}
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 0.1 + i * 0.05, type: 'spring', stiffness: 400 }}
+                    transition={{ delay: 0.1 + i * 0.05, type: 'spring' as const, stiffness: 400 }}
                     className="text-xs bg-white/5 border border-white/[0.07] text-zinc-300 px-2.5 py-1 rounded-lg font-medium"
                   >
                     {ex.name}
@@ -217,7 +217,7 @@ export default function DashboardPage() {
                   className="text-2xl font-black text-orange-400 leading-none"
                   initial={{ opacity: 0, scale: 0.5 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.5, type: 'spring' }}
+                  transition={{ delay: 0.5, type: 'spring' as const }}
                 >
                   {weekSessions.length}
                 </motion.span>
@@ -272,7 +272,7 @@ export default function DashboardPage() {
             className="flex-1 card p-3.5"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 + i * 0.08, type: 'spring', stiffness: 300 }}
+            transition={{ delay: 0.35 + i * 0.08, type: 'spring' as const, stiffness: 300 }}
             whileTap={{ scale: 0.95 }}
           >
             <span className="text-xl">{s.icon}</span>
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                         className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded-md"
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ delay: 0.6 + i * 0.08, type: 'spring' }}
+                        transition={{ delay: 0.6 + i * 0.08, type: 'spring' as const }}
                       >
                         +{(pr.value - pr.previousValue).toFixed(1)}
                       </motion.span>
